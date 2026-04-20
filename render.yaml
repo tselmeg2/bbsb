@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: bbsb
+    runtime: python
+    buildCommand: pip install flask pandas numpy xgboost scikit-learn matplotlib openpyxl gunicorn
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
