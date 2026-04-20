@@ -266,7 +266,7 @@ def add_lags(df, cols, lags=(1,2,3,4)):
 
 def train_xgb(X_train, y_train):
     model = XGBRegressor(n_estimators=400, learning_rate=0.1, max_depth=5,
-                         subsample=0.8, colsample_bytree=0.6,
+                         subsample=0.6, colsample_bytree=0.6,
                          objective="reg:squarederror", missing=np.nan, random_state=42)
     model.fit(X_train, y_train)
     return model
