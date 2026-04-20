@@ -18,8 +18,8 @@ except ImportError:
 
 st.set_page_config(page_title="Monte Carlo DTI Simulation", page_icon="📊", layout="wide")
 
-st.title("📊 Monte Carlo Simulation: Neutral DTIbbsb Rate Finder")
-st.markdown("Set the **DTI policy shock range** and click **Run Simulation** to find the optimal neutral DTIbbsb rate.")
+st.title("📊 Monte Carlo Simulation:ББСБ-ын хэрэглээний зээлийн неутрал өр, орлогын харьцаа тооцоологч")
+st.markdown("Set the **Өр, орлогын харьцаа** and click **Run Simulation*неутрал өр, орлогын харьцаа тооцоолно уу* ")
 
 TARGET_GDP      = "realgdp"
 TARGET_CPI      = "cpi"
@@ -156,19 +156,19 @@ with st.expander("🔍 Preview source data"):
 # --- Sidebar: inputs only ---
 st.sidebar.header("⚙️ Simulation Settings")
 st.sidebar.subheader("📌 DTIbbsb Policy Shock Range")
-shock_min = st.sidebar.number_input("Minimum DTIbbsb rate", value=0.30, step=0.01, format="%.2f")
-shock_max = st.sidebar.number_input("Maximum DTIbbsb rate", value=0.90, step=0.01, format="%.2f")
+shock_min = st.sidebar.number_input("Эхлэх харьцаа", value=0.30, step=0.01, format="%.2f")
+shock_max = st.sidebar.number_input("Дуусах харьцаа", value=0.90, step=0.01, format="%.2f")
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🔧 Options")
-n_sim      = st.sidebar.slider("Number of Simulations", 100, 2000, 1000, step=100)
-n_forecast = st.sidebar.slider("Forecast Quarters",       1,    8,    4)
+n_sim      = st.sidebar.slider("Симуляцийн тоо", 100,200,300,400,500, step=100)
+n_forecast = st.sidebar.slider("Хэдэн улирлын дараах таамаглал ашиглах",       1,2,3,4)
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🎯 Taylor Loss Targets")
-g_star    = st.sidebar.number_input("GDP target (g*)",     value=0.058, format="%.3f", step=0.001)
-pi_star   = st.sidebar.number_input("CPI target (π*)",     value=0.060, format="%.3f", step=0.001)
-npcl_star = st.sidebar.number_input("NPCL target (npcl*)", value=0.036, format="%.3f", step=0.001)
+g_star    = st.sidebar.number_input("ДНБ-ны тренд өсөлт хувь (g*)",     value=0.058, format="%.3f", step=0.001)
+pi_star   = st.sidebar.number_input("Инфляци таргет (π*)",     value=0.060, format="%.3f", step=0.001)
+npcl_star = st.sidebar.number_input("Зээлийн чанарын таргет (npcl*)", value=0.036, format="%.3f", step=0.001)
 
 st.sidebar.markdown("---")
 run_btn = st.sidebar.button("▶️ Run Simulation", type="primary", use_container_width=True)
@@ -189,18 +189,15 @@ try:
 
     st.subheader("🎯 Result")
     m1,m2,m3,m4 = st.columns(4)
-    m1.metric("🏆 Neutral DTIbbsb Rate", f"{neutral_rate:.4f}")
-    m2.metric("📈 Forecasted GDP",        f"{neutral_row['Et_gdp']:.4f}")
-    m3.metric("💹 Forecasted CPI",        f"{neutral_row['Et_cpi']:.4f}")
-    m4.metric("📉 Forecasted NPCL",       f"{neutral_row['Et_npcl']:.4f}")
+    m1.metric("🏆 Неутрал ББСБ-ын өр, орлогын харьцаа", f"{neutral_rate:.4f}")
 
     st.markdown("---")
-    st.subheader("📉 DTIbbsb Rate vs Loss Function")
+    st.subheader("📉 ББСБ-ын өр, орлогын харьцаа vs Функцийн утга")
     fig, ax = plt.subplots(figsize=(12,5))
     ax.scatter(mc_df["DTIbbsb"], mc_df["loss"], alpha=0.3, s=10, color="#4C8BF5")
     ax.axvline(neutral_rate, color="red", linestyle="--", linewidth=2, label=f"Neutral Rate = {neutral_rate:.4f}")
-    ax.set_xlabel("ББСБ-ын хэрэглээний зээлийн өр, орлогын харьцаа (DTIbbsb)", fontsize=11)
-    ax.set_ylabel("Өргөтгөсөн функцын утга (Loss)", fontsize=11)
+    ax.set_xlabel("ББСБ-ын хэрэглээний зээлийн өр, орлогын харьцаа", fontsize=11)
+    ax.set_ylabel("Өргөтгөсөн функцын утга", fontsize=11)
     ax.set_title(f"Monte Carlo | Range [{shock_min:.2f} – {shock_max:.2f}] | N={n_sim}", fontsize=13)
     ax.legend(); ax.grid(True, alpha=0.3)
     st.pyplot(fig)
