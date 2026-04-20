@@ -15,141 +15,237 @@ TARGET_NPCL     = "Nonperloanconsumer"
 ENDOGENOUS_VARS = [TARGET_GDP, TARGET_CPI, TARGET_NPCL]
 DATA_PATH       = os.path.join(os.path.abspath(os.path.dirname(__file__) or "."), "DSR.xlsx")
 
-HTML = """
+# ==================================================
+# BASE LAYOUT
+# ==================================================
+BASE = """
 <!DOCTYPE html>
 <html lang="mn">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Монте Карло Симуляц - DTIbbsb</title>
+<title>ББСБ Судалгаа</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Segoe UI',sans-serif;background:#f0f4f8;color:#222}
-  header{background:#1a3c5e;color:white;padding:24px 40px}
-  header h1{font-size:1.6rem}
-  header p{font-size:0.9rem;opacity:0.8;margin-top:4px}
-  .container{max-width:920px;margin:32px auto;padding:0 20px}
-  .card{background:white;border-radius:12px;padding:28px;margin-bottom:24px;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
-  h2{font-size:1.05rem;color:#1a3c5e;margin-bottom:18px;border-bottom:2px solid #e2e8f0;padding-bottom:8px}
+  body{font-family:'Segoe UI',sans-serif;background:#f0f4f8;color:#222;display:flex;min-height:100vh}
+
+  /* ---- Sidebar ---- */
+  .sidebar{
+    width:260px;min-width:260px;background:#1a3c5e;color:white;
+    display:flex;flex-direction:column;min-height:100vh;position:fixed;top:0;left:0;z-index:100
+  }
+  .sidebar-logo{
+    padding:28px 24px 20px;border-bottom:1px solid rgba(255,255,255,0.1)
+  }
+  .sidebar-logo h2{font-size:1.05rem;font-weight:700;line-height:1.4}
+  .sidebar-logo p{font-size:0.75rem;opacity:0.6;margin-top:4px}
+  .sidebar-nav{padding:16px 0;flex:1}
+  .nav-section{padding:8px 24px 4px;font-size:0.7rem;text-transform:uppercase;
+               letter-spacing:1px;opacity:0.45;font-weight:600}
+  .nav-item{
+    display:flex;align-items:center;gap:12px;padding:11px 24px;
+    color:rgba(255,255,255,0.75);text-decoration:none;font-size:0.9rem;
+    transition:all 0.15s;cursor:pointer;border:none;background:none;width:100%;text-align:left
+  }
+  .nav-item:hover{background:rgba(255,255,255,0.08);color:white}
+  .nav-item.active{background:rgba(255,255,255,0.15);color:white;font-weight:600;
+                   border-left:3px solid #63b3ed}
+  .nav-item .icon{font-size:1.1rem;width:20px;text-align:center}
+  .nav-item .badge{margin-left:auto;background:#63b3ed;color:#1a3c5e;
+                   font-size:0.65rem;padding:2px 7px;border-radius:10px;font-weight:700}
+  .sidebar-footer{padding:16px 24px;border-top:1px solid rgba(255,255,255,0.1);
+                  font-size:0.75rem;opacity:0.45}
+
+  /* ---- Main ---- */
+  .main{margin-left:260px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+  .topbar{background:white;padding:16px 32px;border-bottom:1px solid #e2e8f0;
+          display:flex;align-items:center;justify-content:space-between}
+  .topbar h1{font-size:1.1rem;color:#1a3c5e;font-weight:700}
+  .topbar .sub{font-size:0.82rem;color:#718096;margin-top:2px}
+  .content{padding:28px 32px;flex:1}
+
+  /* ---- Cards ---- */
+  .card{background:white;border-radius:12px;padding:24px;margin-bottom:20px;
+        box-shadow:0 1px 6px rgba(0,0,0,0.07)}
+  h2{font-size:1rem;color:#1a3c5e;margin-bottom:16px;border-bottom:2px solid #e2e8f0;padding-bottom:8px}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
   .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-  label{display:block;font-size:0.82rem;color:#555;margin-bottom:5px;font-weight:600}
-  input[type=number]{width:100%;padding:10px 12px;border:1.5px solid #cbd5e0;border-radius:8px;font-size:0.95rem}
+  label{display:block;font-size:0.8rem;color:#555;margin-bottom:5px;font-weight:600}
+  input[type=number]{width:100%;padding:9px 12px;border:1.5px solid #cbd5e0;
+                     border-radius:8px;font-size:0.92rem}
   input[type=number]:focus{outline:none;border-color:#1a3c5e}
-  button[type=submit]{width:100%;padding:14px;background:#1a3c5e;color:white;border:none;border-radius:8px;
-                      font-size:1rem;font-weight:700;cursor:pointer;margin-top:8px}
-  button[type=submit]:hover{background:#2a5080}
-  .metric{background:#f7fafc;border-radius:10px;padding:16px;text-align:center;border:1px solid #e2e8f0}
-  .metric .val{font-size:1.45rem;font-weight:700;color:#1a3c5e}
-  .metric .lbl{font-size:0.75rem;color:#718096;margin-top:4px}
+  .btn-run{width:100%;padding:13px;background:#1a3c5e;color:white;border:none;
+           border-radius:8px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:8px}
+  .btn-run:hover{background:#2a5080}
+  .metric{background:#f7fafc;border-radius:10px;padding:14px;text-align:center;border:1px solid #e2e8f0}
+  .metric .val{font-size:1.35rem;font-weight:700;color:#1a3c5e}
+  .metric .lbl{font-size:0.72rem;color:#718096;margin-top:4px}
   .highlight{background:#ebf8ff;border:2px solid #1a3c5e}
-  img.chart{width:100%;border-radius:8px;margin-top:8px}
-  table{width:100%;border-collapse:collapse;font-size:0.86rem}
-  th{background:#1a3c5e;color:white;padding:10px 12px;text-align:left}
-  td{padding:9px 12px;border-bottom:1px solid #e2e8f0}
+  img.chart{width:100%;border-radius:8px;margin-top:6px}
+  table{width:100%;border-collapse:collapse;font-size:0.84rem}
+  th{background:#1a3c5e;color:white;padding:9px 12px;text-align:left}
+  td{padding:8px 12px;border-bottom:1px solid #e2e8f0}
   tr:nth-child(even) td{background:#f7fafc}
-  .dl-btn{display:inline-block;margin:6px 6px 0 0;padding:10px 22px;background:#2a5080;
-          color:white;border-radius:8px;text-decoration:none;font-size:0.9rem;font-weight:600}
+  .dl-btn{display:inline-block;margin:5px 5px 0 0;padding:9px 20px;background:#2a5080;
+          color:white;border-radius:8px;text-decoration:none;font-size:0.88rem;font-weight:600}
   .dl-btn:hover{background:#1a3c5e}
-  .info-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px}
+  .info-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px}
   .info-box{background:#ebf8ff;border:1px solid #bee3f8;border-radius:8px;
-            padding:10px 14px;font-size:0.84rem;color:#2c5282;text-align:center}
-  .error{background:#fff5f5;border:1px solid #fc8181;border-radius:8px;padding:16px;color:#c53030;margin-bottom:16px}
-  #spinner{display:none;text-align:center;padding:16px;font-size:1rem;color:#1a3c5e;font-weight:600}
+            padding:9px 14px;font-size:0.82rem;color:#2c5282;text-align:center}
+  .error{background:#fff5f5;border:1px solid #fc8181;border-radius:8px;
+         padding:14px;color:#c53030;margin-bottom:14px}
+  #spinner{display:none;text-align:center;padding:14px;font-size:0.95rem;
+           color:#1a3c5e;font-weight:600}
+
+  /* Coming soon page */
+  .coming-soon{text-align:center;padding:80px 20px}
+  .coming-soon .icon{font-size:4rem;margin-bottom:16px}
+  .coming-soon h2{font-size:1.4rem;color:#1a3c5e;border:none;margin-bottom:8px}
+  .coming-soon p{color:#718096;font-size:0.95rem}
 </style>
 </head>
 <body>
-<header>
-  <h1>📊 Монте Карло Симуляц: ББСБ-ын хэрэглээний зээлийн өр, орлогын харьцаа</h1>
-  <p>Тайлорын функцийн утга хамгийн бага байх неутрал өр, орлогын харьцааг тооцоолно.</p>
-</header>
-<div class="container">
-  <div class="info-strip">
-    <div class="info-box">📅 Өгөгдлийн хугацаа: <strong>{{ info.start }} → {{ info.end }}</strong></div>
-    <div class="info-box">📊 Нийт улирал: <strong>{{ info.rows }}</strong></div>
-    <div class="info-box">🔢 Хувьсагчид: ДНБ · Инфляци · Зээлийн чанар</div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <h2>ББСБ Судалгааны<br>Систем</h2>
+    <p>Монголын санхүүгийн шинжилгээ</p>
   </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">Үндсэн цэс</div>
+    <a href="/" class="nav-item {% if page=='simulation' %}active{% endif %}">
+      <span class="icon">📊</span> Монте Карло Симуляц
+    </a>
+    <a href="/presentation" class="nav-item {% if page=='presentation' %}active{% endif %}">
+      <span class="icon">📑</span> Танилцуулга
+      <span class="badge">Удахгүй</span>
+    </a>
+  </nav>
+  <div class="sidebar-footer">© 2026 ББСБ Судалгаа</div>
+</aside>
 
-  <div class="card">
-    <h2>⚙️ Симуляцын тохиргоо</h2>
-    <form method="POST" onsubmit="document.getElementById('spinner').style.display='block';this.querySelector('button').disabled=true">
-      <div class="grid2">
-        <div><label>ББСБ-ын хэрэглээний зээлийн өр, орлогын харьцааны доод хязгаар</label>
-             <input type="number" name="shock_min" step="0.01" value="{{ f.shock_min }}" required></div>
-        <div><label>ББСБ-ын хэрэглээний зээлийн өр, орлогын харьцааны дээд хязгаар</label>
-             <input type="number" name="shock_max" step="0.01" value="{{ f.shock_max }}" required></div>
-      </div>
-      <div class="grid2">
-        <div><label>Симуляцын тоо</label>
-             <input type="number" name="n_sim" min="100" max="200" step="100" value="{{ f.n_sim }}" required></div>
-        <div><label>Улирлын тоо</label>
-             <input type="number" name="n_forecast" min="1" max="4" value="{{ f.n_forecast }}" required></div>
-      </div>
-      <div class="grid3">
-        <div><label>Бодит ДНБ тренд өсөлтийн хувь</label>
-             <input type="number" name="g_star" step="0.001" value="{{ f.g_star }}" required></div>
-        <div><label>Инфляцийн таргет</label>
-             <input type="number" name="pi_star" step="0.001" value="{{ f.pi_star }}" required></div>
-        <div><label>Чанаргүй зээлийн зорилтот хувь</label>
-             <input type="number" name="npcl_star" step="0.001" value="{{ f.npcl_star }}" required></div>
-      </div>
-      <button type="submit">▶️ Симуляц ажиллуулах</button>
-      <div id="spinner">⏳ Симуляц тооцоолж байна, түр хүлээнэ үү (1–2 минут)…</div>
-    </form>
-  </div>
-
-  {% if error %}<div class="error">❌ Алдаа: {{ error }}</div>{% endif %}
-
-  {% if result %}
-  <div class="card">
-    <h2>🎯 Үр дүн</h2>
-    <div class="grid4">
-      <div class="metric highlight">
-        <div class="val">{{ "%.4f"|format(result.neutral_rate) }}</div>
-        <div class="lbl">🏆 ББСБ-ын хэрэглээний зээлийн неутрал өр, орлогын харьцаа</div>
-      </div>
-      <div class="metric">
-        <div class="val">{{ "%.4f"|format(result.Et_gdp) }}</div>
-        <div class="lbl">📈 Хүлээгдэж буй Бодит ДНБ өсөлтийн хувь</div>
-      </div>
-      <div class="metric">
-        <div class="val">{{ "%.4f"|format(result.Et_cpi) }}</div>
-        <div class="lbl">💹 Инфляци</div>
-      </div>
-      <div class="metric">
-        <div class="val">{{ "%.4f"|format(result.Et_npcl) }}</div>
-        <div class="lbl">📉 Чанаргүй хэрэглээний зээлийн хувь</div>
-      </div>
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar h1">{{ title }}</div>
+      <div class="sub">{{ subtitle }}</div>
     </div>
   </div>
-
-  <div class="card">
-    <h2>📉 DTIbbsb түвшин ба Алдагдлын функц</h2>
-    <img class="chart" src="data:image/png;base64,{{ result.chart1 }}">
+  <div class="content">
+    {% block content %}{% endblock %}
   </div>
-
-  <div class="card">
-    <h2>📊 Таамаглалын тархалт</h2>
-    <img class="chart" src="data:image/png;base64,{{ result.chart2 }}">
-  </div>
-
-  <div class="card">
-    <h2>📋 Алдагдал хамгийн бага 10 хувилбар</h2>
-    {{ result.table | safe }}
-  </div>
-
-  <div class="card">
-    <h2>📥 Үр дүн татаж авах</h2>
-    <a class="dl-btn" href="/download/mc_results">⬇️ МК үр дүн (Excel)</a>
-    <a class="dl-btn" href="/download/mc_input">⬇️ Бүрэн симуляцын өгөгдөл (Excel)</a>
-  </div>
-  {% endif %}
 </div>
+
 </body>
 </html>
 """
 
+# ==================================================
+# SIMULATION PAGE
+# ==================================================
+SIM_PAGE = BASE.replace("{% block content %}{% endblock %}", """
+<div class="info-strip">
+  <div class="info-box">📅 Өгөгдлийн хугацаа: <strong>{{ info.start }} → {{ info.end }}</strong></div>
+  <div class="info-box">📊 Нийт улирал: <strong>{{ info.rows }}</strong></div>
+  <div class="info-box">🔢 Хувьсагчид: ДНБ · Инфляци · Зээлийн чанар</div>
+</div>
+
+<div class="card">
+  <h2>⚙️ Симуляцын тохиргоо</h2>
+  <form method="POST" onsubmit="document.getElementById('spinner').style.display='block';this.querySelector('button').disabled=true">
+    <div class="grid2">
+      <div><label>ББСБ-ын хэрэглээний зээлийн өр, орлогын харьцааны доод хязгаар</label>
+           <input type="number" name="shock_min" step="0.01" value="{{ f.shock_min }}" required></div>
+      <div><label>ББСБ-ын хэрэглээний зээлийн өр, орлогын харьцааны дээд хязгаар</label>
+           <input type="number" name="shock_max" step="0.01" value="{{ f.shock_max }}" required></div>
+    </div>
+    <div class="grid2">
+      <div><label>Симуляцын тоо (100–200)</label>
+           <input type="number" name="n_sim" min="100" max="200" step="100" value="{{ f.n_sim }}" required></div>
+      <div><label>Улирлын тоо (1–4)</label>
+           <input type="number" name="n_forecast" min="1" max="4" value="{{ f.n_forecast }}" required></div>
+    </div>
+    <div class="grid3">
+      <div><label>Бодит ДНБ тренд өсөлтийн хувь</label>
+           <input type="number" name="g_star" step="0.001" value="{{ f.g_star }}" required></div>
+      <div><label>Инфляцийн таргет</label>
+           <input type="number" name="pi_star" step="0.001" value="{{ f.pi_star }}" required></div>
+      <div><label>Чанаргүй зээлийн зорилтот хувь</label>
+           <input type="number" name="npcl_star" step="0.001" value="{{ f.npcl_star }}" required></div>
+    </div>
+    <button type="submit" class="btn-run">▶️ Симуляц ажиллуулах</button>
+    <div id="spinner">⏳ Симуляц тооцоолж байна, түр хүлээнэ үү…</div>
+  </form>
+</div>
+
+{% if error %}<div class="error">❌ Алдаа: {{ error }}</div>{% endif %}
+
+{% if result %}
+<div class="card">
+  <h2>🎯 Үр дүн</h2>
+  <div class="grid4">
+    <div class="metric highlight">
+      <div class="val">{{ "%.4f"|format(result.neutral_rate) }}</div>
+      <div class="lbl">🏆 ББСБ-ын хэрэглээний зээлийн неутрал өр, орлогын харьцаа</div>
+    </div>
+    <div class="metric">
+      <div class="val">{{ "%.4f"|format(result.Et_gdp) }}</div>
+      <div class="lbl">📈 Хүлээгдэж буй Бодит ДНБ өсөлтийн хувь</div>
+    </div>
+    <div class="metric">
+      <div class="val">{{ "%.4f"|format(result.Et_cpi) }}</div>
+      <div class="lbl">💹 Инфляци</div>
+    </div>
+    <div class="metric">
+      <div class="val">{{ "%.4f"|format(result.Et_npcl) }}</div>
+      <div class="lbl">📉 Чанаргүй хэрэглээний зээлийн хувь</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>📉 ББСБ-ын хэрэглээний зээлийн өр, орлогын харьцаа ба Алдагдлын функц</h2>
+  <img class="chart" src="data:image/png;base64,{{ result.chart1 }}">
+</div>
+
+<div class="card">
+  <h2>📊 Таамаглалын тархалт</h2>
+  <img class="chart" src="data:image/png;base64,{{ result.chart2 }}">
+</div>
+
+<div class="card">
+  <h2>📋 Алдагдал хамгийн бага 10 хувилбар</h2>
+  {{ result.table | safe }}
+</div>
+
+<div class="card">
+  <h2>📥 Үр дүн татаж авах</h2>
+  <a class="dl-btn" href="/download/mc_results">⬇️ МК үр дүн (Excel)</a>
+  <a class="dl-btn" href="/download/mc_input">⬇️ Бүрэн симуляцын өгөгдөл (Excel)</a>
+</div>
+{% endif %}
+""")
+
+# ==================================================
+# PRESENTATION PAGE
+# ==================================================
+PRES_PAGE = BASE.replace("{% block content %}{% endblock %}", """
+<div class="card">
+  <div class="coming-soon">
+    <div class="icon">📑</div>
+    <h2>Танилцуулга</h2>
+    <p>Энэ хэсэгт удахгүй танилцуулгын материал байрлах болно.<br>
+    PowerPoint болон HTML хэлбэрийн танилцуулга оруулах боломжтой.</p>
+  </div>
+</div>
+""")
+
+# ==================================================
+# HELPERS
+# ==================================================
 def load_data():
     df = pd.read_excel(DATA_PATH)
     for col in df.columns:
@@ -170,7 +266,7 @@ def add_lags(df, cols, lags=(1,2,3,4)):
     return df
 
 def train_xgb(X_train, y_train):
-    model = XGBRegressor(n_estimators=100, learning_rate=0.1, max_depth=5,
+    model = XGBRegressor(n_estimators=200, learning_rate=0.1, max_depth=5,
                          subsample=0.8, colsample_bytree=0.8,
                          objective="reg:squarederror", missing=np.nan, random_state=42)
     model.fit(X_train, y_train)
@@ -248,8 +344,11 @@ def to_excel_bytes(df):
 
 _store = {}
 
+# ==================================================
+# ROUTES
+# ==================================================
 @app.route("/", methods=["GET","POST"])
-def index():
+def simulation():
     df   = load_data()
     info = {"start":str(df.index.min()),"end":str(df.index.max()),"rows":len(df)}
     defaults = dict(shock_min=0.30,shock_max=0.90,n_sim=200,n_forecast=4,
@@ -271,32 +370,29 @@ def index():
                 _store["mc_df"]  = mc_df
                 _store["inp_df"] = inp_df
 
-                # Chart 1
                 fig1,ax=plt.subplots(figsize=(11,4.5))
                 ax.scatter(mc_df["DTIbbsb"],mc_df["loss"],alpha=0.3,s=8,color="#4C8BF5")
                 ax.axvline(neutral_rate,color="red",linestyle="--",linewidth=2,
-                           label=f"Тэнцвэрт түвшин = {neutral_rate:.4f}")
+                           label=f"Неутрал түвшин = {neutral_rate:.4f}")
                 ax.set_xlabel("ББСБ-ын хэрэглээний зээлийн өр, орлогын харьцаа (DTIbbsb)")
-                ax.set_ylabel("Өргөтгөсөн функцын утга (Алдагдал)")
+                ax.set_ylabel("Тайлорын функцийн утга (Алдагдал)")
                 ax.set_title(f"Монте Карло симуляц | Хязгаар [{f['shock_min']:.2f}–{f['shock_max']:.2f}] | N={f['n_sim']}")
                 ax.legend(); ax.grid(True,alpha=0.3)
                 c1=fig_to_b64(fig1); plt.close(fig1)
 
-                # Chart 2
                 fig2,axes=plt.subplots(1,3,figsize=(14,4))
-                labels_mn = ["Бодит ДНБ өсөлт","Инфляци","Чанаргүй хэрэглээний зээл"]
-                for ax2,col,lbl,tgt in zip(axes,["Et_gdp","Et_cpi","Et_npcl"],labels_mn,[f["g_star"],f["pi_star"],f["npcl_star"]]):
+                for ax2,col,lbl,tgt in zip(axes,["Et_gdp","Et_cpi","Et_npcl"],
+                    ["Бодит ДНБ өсөлт","Инфляци","Чанаргүй хэрэглээний зээл"],
+                    [f["g_star"],f["pi_star"],f["npcl_star"]]):
                     ax2.hist(mc_df[col],bins=40,color="#4C8BF5",alpha=0.7,edgecolor="white")
                     ax2.axvline(mc_df[col].mean(),color="red",linestyle="--",label=f"Дундаж: {mc_df[col].mean():.4f}")
                     ax2.axvline(tgt,color="green",linestyle="--",label=f"Зорилт: {tgt:.4f}")
                     ax2.set_title(f"Таамаглалын {lbl}"); ax2.legend(fontsize=8); ax2.grid(True,alpha=0.3)
                 plt.tight_layout(); c2=fig_to_b64(fig2); plt.close(fig2)
 
-                # Top 10 table — Mongolian headers
-                top10 = mc_df.nsmallest(10,"loss").reset_index(drop=True)
-                top10.index += 1
-                top10.columns = ["DTIbbsb","Хүлээгдэж буй Бодит ДНБ өсөлтийн хувь","Инфляци","Чанаргүй хэрэглээний зээлийн хувь","Алдагдал"]
-                tbl = top10.to_html(classes="",border=0,float_format=lambda x:f"{x:.4f}",index=True)
+                top10=mc_df.nsmallest(10,"loss").reset_index(drop=True); top10.index+=1
+                top10.columns=["DTIbbsb","Хүлээгдэж буй Бодит ДНБ өсөлтийн хувь","Инфляци","Чанаргүй хэрэглээний зээлийн хувь","Алдагдал"]
+                tbl=top10.to_html(classes="",border=0,float_format=lambda x:f"{x:.4f}",index=True)
 
                 result=dict(neutral_rate=neutral_rate,Et_gdp=nr["Et_gdp"],Et_cpi=nr["Et_cpi"],
                             Et_npcl=nr["Et_npcl"],chart1=c1,chart2=c2,table=tbl)
@@ -304,19 +400,30 @@ def index():
             except Exception as e:
                 error=str(e)
 
-    return render_template_string(HTML, info=info, f=defaults, error=error, result=result)
+    return render_template_string(SIM_PAGE,
+        page="simulation",
+        title="Монте Карло Симуляц",
+        subtitle="Тайлорын функцийн утга хамгийн бага байх неутрал өр, орлогын харьцааг тооцоолно.",
+        info=info, f=defaults, error=error, result=result)
 
-@app.route("/download/<name>")
-def download(name):
-    if name=="mc_results" and "mc_df" in _store:
+@app.route("/presentation")
+def presentation():
+    return render_template_string(PRES_PAGE,
+        page="presentation",
+        title="Танилцуулга",
+        subtitle="Судалгааны танилцуулга материал")
+
+@app.route("/download/<n>")
+def download(n):
+    if n=="mc_results" and "mc_df" in _store:
         return send_file(io.BytesIO(to_excel_bytes(_store["mc_df"])),
                          download_name="мк_үр_дүн.xlsx",as_attachment=True,
                          mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    if name=="mc_input" and "inp_df" in _store:
+    if n=="mc_input" and "inp_df" in _store:
         return send_file(io.BytesIO(to_excel_bytes(_store["inp_df"])),
                          download_name="симуляцын_өгөгдөл.xlsx",as_attachment=True,
                          mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    return "Өгөгдөл байхгүй байна. Эхлээд симуляц ажиллуулна уу.", 404
+    return "Өгөгдөл байхгүй байна.", 404
 
 if __name__=="__main__":
     port=int(os.environ.get("PORT",5000))
