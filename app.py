@@ -121,6 +121,9 @@ BASE = """
       <span class="icon">📑</span> Илтгэл
       <span class="badge">Удахгүй</span>
     </a>
+    <a href="/training-data" class="nav-item {% if page=='training' %}active{% endif %}">
+      <span class="icon">🔬</span> Сургалтын өгөгдөл
+    </a>
   </nav>
   <div class="sidebar-footer">© 2026 ББСБ Судалгаа</div>
 </aside>
@@ -231,6 +234,18 @@ SIM_PAGE = BASE.replace("{% block content %}{% endblock %}", """
 # ==================================================
 # PRESENTATION PAGE
 # ==================================================
+
+TRAIN_PAGE = BASE.replace("{% block content %}{% endblock %}", """
+<div class="card">
+  <h2>🔬 Загварын сургалтын өгөгдөл (X_train)</h2>
+  <p style="margin-bottom:12px;color:#555;font-size:0.88rem">
+    Доорх хүснэгт нь XGBoost загварыг сургахад ашигласан бүх feature болон target утгуудыг харуулж байна.
+    Нийт мөрийн тоо, баганын тоо, болон NaN утгуудыг шалгах боломжтой.
+  </p>
+  {{ content | safe }}
+</div>
+""")
+
 PRES_PAGE = BASE.replace("{% block content %}{% endblock %}", """
 <div class="card">
   <div class="coming-soon">
@@ -415,6 +430,78 @@ def simulation():
         subtitle="Тайлорын функцийн утга хамгийн бага байх ББСБ-ын хэрэглээний зээлийн неутрал өр, орлогын харьцааг тооцоолно.",
         info=info, f=defaults, error=error, result=result)
 
+@app.route("/training-data")
+def training_data():
+    df   = load_data()
+    base_cols = [c for c in df.columns if c not in ["Fiscal year","Quarter"] and not c.startswith("Q_")]
+    
+    def add_lags_local(df, cols, lags=(1,2,3,4)):
+        df = df.copy()
+        for col in cols:
+            for lag in lags:
+                df[f"{col}_lag{lag}"] = df[col].shift(lag)
+        return df
+    
+    df_lagged = add_lags_local(df, base_cols)
+    X = df_lagged.drop(columns=["Fiscal year","Quarter"], errors="ignore")
+    
+    ENDOGENOUS_VARS_LOCAL = [TARGET_GDP, TARGET_CPI, TARGET_NPCL]
+    
+    tabs_html = ""
+    for var in ENDOGENOUS_VARS_LOCAL:
+        mask   = df_lagged[var].notna()
+        X_var  = X.drop(columns=[var], errors="ignore").loc[mask]
+        y_var  = df_lagged[var].loc[mask]
+        
+        # Combine X and y for display
+        display_df = X_var.copy()
+        display_df.insert(0, f"TARGET: {var}", y_var)
+        display_df = display_df.reset_index()
+        
+        # Style: highlight NaN counts
+        nan_counts = display_df.isna().sum()
+        nan_cols   = nan_counts[nan_counts > 0].to_dict()
+        
+        shape_info = f"Мөр: {display_df.shape[0]} | Багана: {display_df.shape[1]} | NaN баганууд: {len(nan_cols)}"
+        
+        tbl = display_df.to_html(
+            classes="train-table", border=0, index=False,
+            float_format=lambda x: f"{x:.6f}",
+            na_rep="NaN"
+        )
+        
+        tabs_html += f"""
+        <div style="margin-bottom:32px">
+          <h3 style="color:#1a3c5e;margin-bottom:8px">📌 {var}</h3>
+          <div style="background:#ebf8ff;border:1px solid #bee3f8;border-radius:8px;padding:10px 16px;
+                      margin-bottom:12px;font-size:0.84rem;color:#2c5282">{shape_info}</div>
+          <div style="overflow-x:auto;max-height:400px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px">
+            {tbl}
+          </div>
+        </div>"""
+    
+    content = f"""
+    <style>
+      .train-table {{ width:100%;border-collapse:collapse;font-size:0.78rem }}
+      .train-table th {{ background:#1a3c5e;color:white;padding:7px 10px;text-align:left;
+                         position:sticky;top:0;white-space:nowrap }}
+      .train-table td {{ padding:6px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap }}
+      .train-table tr:nth-child(even) td {{ background:#f7fafc }}
+    </style>
+    {tabs_html}
+    <div style="margin-top:16px">
+      <a class="dl-btn" href="/download/training-gdp">⬇️ GDP сургалтын өгөгдөл</a>
+      <a class="dl-btn" href="/download/training-cpi">⬇️ CPI сургалтын өгөгдөл</a>
+      <a class="dl-btn" href="/download/training-npcl">⬇️ NPCL сургалтын өгөгдөл</a>
+    </div>
+    """
+    
+    return render_template_string(TRAIN_PAGE,
+        page="training",
+        title="Сургалтын өгөгдөл",
+        subtitle="XGBoost загварыг сургахад ашигласан X_train өгөгдөл",
+        content=content)
+
 @app.route("/presentation")
 def presentation():
     return render_template_string(PRES_PAGE,
@@ -431,6 +518,29 @@ def download(n):
     if n=="mc_input" and "inp_df" in _store:
         return send_file(io.BytesIO(to_excel_bytes(_store["inp_df"])),
                          download_name="симуляцын_өгөгдөл.xlsx",as_attachment=True,
+                         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    # Training data downloads
+    if n in ("training-gdp","training-cpi","training-npcl"):
+        var_map = {"training-gdp": TARGET_GDP, "training-cpi": TARGET_CPI, "training-npcl": TARGET_NPCL}
+        name_map = {"training-gdp": "gdp", "training-cpi": "cpi", "training-npcl": "npcl"}
+        var = var_map[n]
+        df = load_data()
+        base_cols = [c for c in df.columns if c not in ["Fiscal year","Quarter"] and not c.startswith("Q_")]
+        def add_lags_dl(df, cols, lags=(1,2,3,4)):
+            df = df.copy()
+            for col in cols:
+                for lag in lags:
+                    df[f"{col}_lag{lag}"] = df[col].shift(lag)
+            return df
+        df_l = add_lags_dl(df, base_cols)
+        X = df_l.drop(columns=["Fiscal year","Quarter"], errors="ignore")
+        mask = df_l[var].notna()
+        X_var = X.drop(columns=[var], errors="ignore").loc[mask]
+        y_var = df_l[var].loc[mask]
+        out = X_var.copy(); out.insert(0, f"TARGET_{var}", y_var)
+        out = out.reset_index()
+        return send_file(io.BytesIO(to_excel_bytes(out)),
+                         download_name=f"train_{name_map[n]}.xlsx",as_attachment=True,
                          mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     return "Өгөгдөл байхгүй байна.", 404
 
