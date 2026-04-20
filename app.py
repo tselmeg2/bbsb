@@ -6,6 +6,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import io, os, base64
 from xgboost import XGBRegressor
+import shap
 
 app = Flask(__name__)
 
@@ -121,9 +122,10 @@ BASE = """
       <span class="icon">📑</span> Илтгэл
       <span class="badge">Удахгүй</span>
     </a>
-    <a href="/training-data" class="nav-item {% if page=='training' %}active{% endif %}">
-      <span class="icon">🔬</span> Сургалтын өгөгдөл
+    <a href="/shap" class="nav-item {% if page=='shap' %}active{% endif %}">
+      <span class="icon">📈</span> SHAP Шинжилгээ
     </a>
+
   </nav>
   <div class="sidebar-footer">© 2026 ББСБ Судалгаа</div>
 </aside>
@@ -501,6 +503,181 @@ def training_data():
         title="Сургалтын өгөгдөл",
         subtitle="XGBoost загварыг сургахад ашигласан X_train өгөгдөл",
         content=content)
+
+
+SHAP_PAGE = BASE.replace("{% block content %}{% endblock %}", """
+<div class="card">
+  <h2>📈 SHAP Шинжилгээ — Загварын тайлбар</h2>
+  <p style="margin-bottom:16px;color:#555;font-size:0.88rem">
+    SHAP (SHapley Additive exPlanations) нь XGBoost загварын таамаглалд хувь нэмэр оруулсан
+    feature-уудыг тоон болон харааны хэлбэрээр харуулдаг. Баар урт байх тусам тухайн feature
+    таамаглалд илүү нөлөөтэй байна.
+  </p>
+  {{ content | safe }}
+</div>
+""")
+
+@app.route("/shap")
+def shap_page():
+    df   = load_data()
+    base_cols = [c for c in df.columns if c not in ["Fiscal year","Quarter"] and not c.startswith("Q_")]
+
+    def add_lags_s(df, cols, lags=(1,2,3,4)):
+        df = df.copy()
+        for col in cols:
+            for lag in lags:
+                df[f"{col}_lag{lag}"] = df[col].shift(lag)
+        return df
+
+    df_l = add_lags_s(df, base_cols)
+    X    = df_l.drop(columns=["Fiscal year","Quarter"], errors="ignore")
+
+    X_dict_s, y_dict_s = {}, {}
+    for var in [TARGET_GDP, TARGET_CPI, TARGET_NPCL]:
+        mask = df_l[var].notna()
+        X_dict_s[var] = X.drop(columns=[var], errors="ignore").loc[mask]
+        y_dict_s[var] = df_l[var].loc[mask]
+
+    np.random.seed(42)
+    def train_s(Xt, yt):
+        m = XGBRegressor(n_estimators=400, learning_rate=0.1, max_depth=5,
+                         subsample=0.6, colsample_bytree=0.6,
+                         objective="reg:squarederror", missing=np.nan, random_state=42)
+        m.fit(Xt, yt); return m
+
+    var_models_s = {v: train_s(X_dict_s[v], y_dict_s[v]) for v in [TARGET_GDP, TARGET_CPI, TARGET_NPCL]}
+
+    var_labels = {
+        TARGET_GDP:  ("Бодит ДНБ өсөлт", "#4C8BF5"),
+        TARGET_CPI:  ("Инфляци",          "#F5844C"),
+        TARGET_NPCL: ("Чанаргүй зээл",    "#4CAF50"),
+    }
+
+    def fig_to_b64(fig):
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", bbox_inches="tight", dpi=110)
+        buf.seek(0)
+        return base64.b64encode(buf.read()).decode()
+
+    content_html = ""
+    for var in [TARGET_GDP, TARGET_CPI, TARGET_NPCL]:
+        lbl, color = var_labels[var]
+        explainer   = shap.TreeExplainer(var_models_s[var])
+        shap_vals   = explainer.shap_values(X_dict_s[var])
+        feat_names  = X_dict_s[var].columns.tolist()
+
+        # Mean absolute SHAP — top 15
+        mean_abs  = np.abs(shap_vals).mean(axis=0)
+        top_n     = 15
+        top_idx   = np.argsort(mean_abs)[-top_n:][::-1]
+        top_feats = [feat_names[i] for i in top_idx]
+        top_vals  = mean_abs[top_idx]
+
+        # Mongolian feature name map
+        mn_map = {
+            "realgdp_lag1":"Бодит ДНБ (1 улирал өмнө)",
+            "realgdp_lag2":"Бодит ДНБ (2 улирал өмнө)",
+            "realgdp_lag3":"Бодит ДНБ (3 улирал өмнө)",
+            "realgdp_lag4":"Бодит ДНБ (4 улирал өмнө)",
+            "cpi_lag1":"Инфляци (1 улирал өмнө)",
+            "cpi_lag2":"Инфляци (2 улирал өмнө)",
+            "cpi_lag3":"Инфляци (3 улирал өмнө)",
+            "cpi_lag4":"Инфляци (4 улирал өмнө)",
+            "Nonperloanconsumer_lag1":"Чанаргүй зээл (1 улирал өмнө)",
+            "Nonperloanconsumer_lag2":"Чанаргүй зээл (2 улирал өмнө)",
+            "Nonperloanconsumer_lag3":"Чанаргүй зээл (3 улирал өмнө)",
+            "Nonperloanconsumer_lag4":"Чанаргүй зээл (4 улирал өмнө)",
+            "DTIbbsb":"ББСБ DTI",
+            "DTIbbsb_lag1":"ББСБ DTI (1 улирал өмнө)",
+            "DTIbbsb_lag2":"ББСБ DTI (2 улирал өмнө)",
+            "DTIbbsb_lag3":"ББСБ DTI (3 улирал өмнө)",
+            "DTIbbsb_lag4":"ББСБ DTI (4 улирал өмнө)",
+            "DTIDummy":"DTI Dummy",
+            "DTIDummy_lag1":"DTI Dummy (1 улирал өмнө)",
+            "DTIDummy_lag2":"DTI Dummy (2 улирал өмнө)",
+            "DTIDummy_lag3":"DTI Dummy (3 улирал өмнө)",
+            "DTIDummy_lag4":"DTI Dummy (4 улирал өмнө)",
+            "realgdp":"Бодит ДНБ (одоо)",
+            "cpi":"Инфляци (одоо)",
+            "Nonperloanconsumer":"Чанаргүй зээл (одоо)",
+            "Q_2":"2-р улирал","Q_3":"3-р улирал","Q_4":"4-р улирал",
+        }
+        top_labels = [mn_map.get(f, f) for f in top_feats]
+
+        # Bar chart
+        fig, ax = plt.subplots(figsize=(10, 5))
+        bars = ax.barh(range(top_n), top_vals[::-1], color=color, alpha=0.82, edgecolor="white")
+        ax.set_yticks(range(top_n))
+        ax.set_yticklabels(top_labels[::-1], fontsize=9)
+        ax.set_xlabel("Дундаж |SHAP| утга", fontsize=10)
+        ax.set_title(f"{lbl} загварын SHAP Feature Importance (Top {top_n})", fontsize=12, fontweight="bold")
+        ax.grid(axis="x", alpha=0.3)
+        for bar, val in zip(bars, top_vals[::-1]):
+            ax.text(val + max(top_vals)*0.01, bar.get_y()+bar.get_height()/2,
+                    f"{val:.4f}", va="center", fontsize=8, color="#333")
+        plt.tight_layout()
+        chart1 = fig_to_b64(fig); plt.close(fig)
+
+        # SHAP dot plot (beeswarm style manually)
+        fig2, ax2 = plt.subplots(figsize=(10, 5))
+        for rank, idx in enumerate(top_idx[::-1]):
+            sv   = shap_vals[:, idx]
+            fv   = X_dict_s[var].iloc[:, idx].values
+            fv_n = (fv - np.nanmin(fv)) / (np.nanmax(fv) - np.nanmin(fv) + 1e-9)
+            sc = ax2.scatter(sv, [rank]*len(sv), c=fv_n, cmap="RdBu_r",
+                             alpha=0.7, s=40, vmin=0, vmax=1)
+        ax2.set_yticks(range(top_n))
+        ax2.set_yticklabels(top_labels[::-1], fontsize=9)
+        ax2.axvline(0, color="black", linewidth=0.8, linestyle="--")
+        ax2.set_xlabel("SHAP утга (таамаглалд үзүүлэх нөлөө)", fontsize=10)
+        ax2.set_title(f"{lbl} — SHAP тархалт (улаан=өндөр утга, цэнхэр=бага утга)", fontsize=11)
+        plt.colorbar(sc, ax=ax2, label="Feature утгын харьцангуй түвшин")
+        ax2.grid(axis="x", alpha=0.3)
+        plt.tight_layout()
+        chart2 = fig_to_b64(fig2); plt.close(fig2)
+
+        # Summary table
+        rows = "".join([
+            f"<tr><td>{rank+1}</td><td>{top_labels[rank]}</td>"
+            f"<td>{top_feats[rank]}</td><td>{top_vals[rank]:.6f}</td></tr>"
+            for rank in range(min(10, top_n))
+        ])
+        tbl = f"""<table><thead><tr>
+            <th>#</th><th>Feature (Монгол)</th><th>Feature (код)</th><th>Дундаж |SHAP|</th>
+        </tr></thead><tbody>{rows}</tbody></table>"""
+
+        content_html += f"""
+        <div style="margin-bottom:40px;padding-bottom:32px;border-bottom:2px solid #e2e8f0">
+          <h3 style="color:#1a3c5e;font-size:1.1rem;margin-bottom:16px">
+            {'📈' if var==TARGET_GDP else '💹' if var==TARGET_CPI else '📉'} {lbl}
+          </h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+            <div>
+              <div style="font-size:0.82rem;color:#555;margin-bottom:6px;font-weight:600">
+                Feature Importance (дундаж нөлөөллийн хэмжээ)
+              </div>
+              <img src="data:image/png;base64,{chart1}" style="width:100%;border-radius:8px">
+            </div>
+            <div>
+              <div style="font-size:0.82rem;color:#555;margin-bottom:6px;font-weight:600">
+                SHAP тархалт (нөлөөллийн чиглэл ба хэмжээ)
+              </div>
+              <img src="data:image/png;base64,{chart2}" style="width:100%;border-radius:8px">
+            </div>
+          </div>
+          <details style="margin-top:8px">
+            <summary style="cursor:pointer;font-size:0.88rem;color:#1a3c5e;font-weight:600;padding:8px 0">
+              📋 Top 10 Feature хүснэгт харах
+            </summary>
+            <div style="margin-top:8px">{tbl}</div>
+          </details>
+        </div>"""
+
+    return render_template_string(SHAP_PAGE,
+        page="shap",
+        title="SHAP Шинжилгээ",
+        subtitle="XGBoost загварын таамаглалд хувь нэмэр оруулсан хүчин зүйлсийн шинжилгээ",
+        content=content_html)
 
 @app.route("/presentation")
 def presentation():
