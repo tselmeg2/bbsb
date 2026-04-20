@@ -321,8 +321,12 @@ def run_simulation(df, shock_min, shock_max, n_sim, n_forecast, g_star, pi_star,
                 preds[var]=pred
             gdp_f.append(preds[TARGET_GDP]); cpi_f.append(preds[TARGET_CPI]); npcl_f.append(preds[TARGET_NPCL])
             row=X_curr.copy()
-            row.update({"sim_index":i,"forecast_period":p.start_time,"DTIbbsb_policy_shock":shock,
-                        "predicted_gdp":preds[TARGET_GDP],"predicted_cpi":preds[TARGET_CPI],"predicted_npcl":preds[TARGET_NPCL]})
+            row["sim_index"] = i
+            row["forecast_period"] = p.start_time
+            row["DTIbbsb_policy_shock"] = shock
+            row["predicted_gdp"]  = preds[TARGET_GDP]
+            row["predicted_cpi"]  = preds[TARGET_CPI]
+            row["predicted_npcl"] = preds[TARGET_NPCL]
             mc_input.append(row)
             X_prev=X_curr.copy()
             for var in ENDOGENOUS_VARS: X_prev[var]=preds[var]
