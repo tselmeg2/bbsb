@@ -62,13 +62,13 @@ HTML = """
 <body>
 <header>
   <h1>📊 Монте Карло Симуляц: ББСБ-ын хэрэглээний зээлийн өр, орлогын харьцаа</h1>
-  <p>Бодлогын өр орлогын харьцааны хязгаарыг тохируулж, Тэйлорын алдагдлын функцыг хамгийн бага болгох оновчтой тэнцвэрт түвшинг тооцоол</p>
+  <p>Тайлорын функцийн утга хамгийн бага байх неутрал өр, орлогын харьцааг тооцоолно.</p>
 </header>
 <div class="container">
   <div class="info-strip">
     <div class="info-box">📅 Өгөгдлийн хугацаа: <strong>{{ info.start }} → {{ info.end }}</strong></div>
     <div class="info-box">📊 Нийт улирал: <strong>{{ info.rows }}</strong></div>
-    <div class="info-box">🔢 Хувьсагчид: ДНБ · ХҮИ · Чанаргүй зээл · DTIbbsb</div>
+    <div class="info-box">🔢 Хувьсагчид: ДНБ · Инфляци · Зээлийн чанар</div>
   </div>
 
   <div class="card">
@@ -82,16 +82,16 @@ HTML = """
       </div>
       <div class="grid2">
         <div><label>Симуляцын тоо</label>
-             <input type="number" name="n_sim" min="100" max="2000" step="100" value="{{ f.n_sim }}" required></div>
-        <div><label>Таамаглалын улирлын тоо</label>
-             <input type="number" name="n_forecast" min="1" max="8" value="{{ f.n_forecast }}" required></div>
+             <input type="number" name="n_sim" min="100" max="200" step="100" value="{{ f.n_sim }}" required></div>
+        <div><label>Улирлын тоо</label>
+             <input type="number" name="n_forecast" min="1" max="4" value="{{ f.n_forecast }}" required></div>
       </div>
       <div class="grid3">
-        <div><label>ДНБ-ний зорилтот түвшин (g*)</label>
+        <div><label>Бодит ДНБ тренд өсөлтийн хувь</label>
              <input type="number" name="g_star" step="0.001" value="{{ f.g_star }}" required></div>
-        <div><label>ХҮИ-ний зорилтот түвшин (π*)</label>
+        <div><label>Инфляцийн таргет</label>
              <input type="number" name="pi_star" step="0.001" value="{{ f.pi_star }}" required></div>
-        <div><label>Чанаргүй зээлийн зорилтот түвшин (npcl*)</label>
+        <div><label>Чанаргүй зээлийн зорилтот хувь</label>
              <input type="number" name="npcl_star" step="0.001" value="{{ f.npcl_star }}" required></div>
       </div>
       <button type="submit">▶️ Симуляц ажиллуулах</button>
@@ -170,8 +170,8 @@ def add_lags(df, cols, lags=(1,2,3,4)):
     return df
 
 def train_xgb(X_train, y_train):
-    model = XGBRegressor(n_estimators=400, learning_rate=0.1, max_depth=5,
-                         subsample=0.6, colsample_bytree=0.6,
+    model = XGBRegressor(n_estimators=100, learning_rate=0.1, max_depth=5,
+                         subsample=0.8, colsample_bytree=0.8,
                          objective="reg:squarederror", missing=np.nan, random_state=42)
     model.fit(X_train, y_train)
     return model
@@ -252,7 +252,7 @@ _store = {}
 def index():
     df   = load_data()
     info = {"start":str(df.index.min()),"end":str(df.index.max()),"rows":len(df)}
-    defaults = dict(shock_min=0.30,shock_max=0.90,n_sim=1000,n_forecast=4,
+    defaults = dict(shock_min=0.30,shock_max=0.90,n_sim=200,n_forecast=4,
                     g_star=0.058,pi_star=0.060,npcl_star=0.036)
     error, result = None, None
 
