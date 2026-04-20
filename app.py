@@ -266,7 +266,7 @@ def add_lags(df, cols, lags=(1,2,3,4)):
 
 def train_xgb(X_train, y_train):
     model = XGBRegressor(n_estimators=400, learning_rate=0.1, max_depth=5,
-                         subsample=0.8, colsample_bytree=0.8,
+                         subsample=0.8, colsample_bytree=0.6,
                          objective="reg:squarederror", missing=np.nan, random_state=42)
     model.fit(X_train, y_train)
     return model
@@ -326,7 +326,7 @@ def run_simulation(df, shock_min, shock_max, n_sim, n_forecast, g_star, pi_star,
             mc_input.append(row)
             X_prev=X_curr.copy()
             for var in ENDOGENOUS_VARS: X_prev[var]=preds[var]
-        loss=0.33*(cpi_f[-1]-pi_star)**2+0.33*(gdp_f[-1]-g_star)**2+0.33*(npcl_f[-1]-npcl_star)**2
+        loss=(0.33*(cpi_f[-1]-pi_star)**2+0.33*(gdp_f[-1]-g_star)**2+0.33*(npcl_f[-1]-npcl_star)**2)*1000
         mc_results.append({"DTIbbsb":shock,"Et_gdp":gdp_f[-1],"Et_cpi":cpi_f[-1],"Et_npcl":npcl_f[-1],"loss":loss})
     mc_df = pd.DataFrame(mc_results)
     nr    = mc_df.loc[mc_df["loss"].idxmin()]
@@ -374,7 +374,7 @@ def simulation():
                 ax.axvline(neutral_rate,color="red",linestyle="--",linewidth=2,
                            label=f"Неутрал түвшин = {neutral_rate:.4f}")
                 ax.set_xlabel("ББСБ-ын хэрэглээний зээлийн өр, орлогын харьцаа (DTIbbsb)")
-                ax.set_ylabel("Тайлорын функцийн утга (Алдагдал)")
+                ax.set_ylabel("Тайлорын функцийн утга (Алдагдал ×1000)")
                 ax.set_title(f"Монте Карло симуляц | Хязгаар [{f['shock_min']:.2f}–{f['shock_max']:.2f}] | N={f['n_sim']}")
                 ax.legend(); ax.grid(True,alpha=0.3)
                 c1=fig_to_b64(fig1); plt.close(fig1)
@@ -390,7 +390,7 @@ def simulation():
                 plt.tight_layout(); c2=fig_to_b64(fig2); plt.close(fig2)
 
                 top10=mc_df.nsmallest(10,"loss").reset_index(drop=True); top10.index+=1
-                top10.columns=["DTIbbsb","Хүлээгдэж буй Бодит ДНБ өсөлтийн хувь","Инфляци","Чанаргүй хэрэглээний зээлийн хувь","Алдагдал"]
+                top10.columns=["DTIbbsb","Хүлээгдэж буй Бодит ДНБ өсөлтийн хувь","Инфляци","Чанаргүй хэрэглээний зээлийн хувь","Алдагдал (×1000)"]
                 tbl=top10.to_html(classes="",border=0,float_format=lambda x:f"{x:.4f}",index=True)
 
                 result=dict(neutral_rate=neutral_rate,Et_gdp=nr["Et_gdp"],Et_cpi=nr["Et_cpi"],
