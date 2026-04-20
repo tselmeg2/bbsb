@@ -293,12 +293,17 @@ def run_simulation(df, shock_min, shock_max, n_sim, n_forecast, g_star, pi_star,
         gdp_f, cpi_f, npcl_f = [], [], []
         for p in fperiods:
             X_curr = X_prev.copy()
+            # Step 1: clear current endogenous values
             for var in ENDOGENOUS_VARS: X_curr[var] = np.nan
+            # Step 2: Excel overwrite ONLY exogenous cols (DTIDummy etc), NOT lags
             if p in df.index:
                 for col in X_curr.index:
                     if col in df.columns and not pd.isna(df.loc[p, col]):
-                        X_curr[col] = df.loc[p, col]
+                        if not col.endswith(tuple([f"_lag{i}" for i in range(1,5)])) and col not in ENDOGENOUS_VARS:
+                            X_curr[col] = df.loc[p, col]
+            # Step 3: Apply shock
             X_curr["DTIbbsb"] = shock
+            # Step 4: Update ALL lags recursively from history
             for lag_col in lag_cols_all:
                 base, ln = lag_col.rsplit("_lag",1); ln=int(ln)
                 if base in ENDOGENOUS_VARS:
@@ -307,6 +312,7 @@ def run_simulation(df, shock_min, shock_max, n_sim, n_forecast, g_star, pi_star,
                     X_curr[lag_col] = X_prev["DTIbbsb"] if ln==1 else X_prev.get(f"DTIbbsb_lag{ln-1}", np.nan)
                 else:
                     X_curr[lag_col] = X_prev.get(base,np.nan) if ln==1 else X_prev.get(f"{base}_lag{ln-1}", np.nan)
+            # Step 5: Update quarter dummies
             for col in X_curr.index:
                 if col.startswith("Q_"): X_curr[col]=1 if col==f"Q_{p.quarter}" else 0
             preds = {}
