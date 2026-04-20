@@ -13,15 +13,15 @@ TARGET_GDP      = "realgdp"
 TARGET_CPI      = "cpi"
 TARGET_NPCL     = "Nonperloanconsumer"
 ENDOGENOUS_VARS = [TARGET_GDP, TARGET_CPI, TARGET_NPCL]
-DATA_PATH       = os.path.join(os.path.dirname(__file__), "DSR.xlsx")
+DATA_PATH       = os.path.join(os.path.abspath(os.path.dirname(__file__) or "."), "DSR.xlsx")
 
 HTML = """
 <!DOCTYPE html>
-<html lang="en">
+<html lang="mn">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Monte Carlo DTI Simulation</title>
+<title>Монте Карло Симуляц - DTIbbsb</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Segoe UI',sans-serif;background:#f0f4f8;color:#222}
@@ -61,88 +61,88 @@ HTML = """
 </head>
 <body>
 <header>
-  <h1>📊 Monte Carlo Simulation: Neutral DTIbbsb Rate Finder</h1>
-  <p>Set the DTI policy shock range to find the optimal neutral rate minimizing the Taylor loss function</p>
+  <h1>📊 Монте Карло Симуляц: ББСБ-ын хэрэглээний зээлийн өр, орлогын харьцаа</h1>
+  <p>Бодлогын өр орлогын харьцааны хязгаарыг тохируулж, Тэйлорын алдагдлын функцыг хамгийн бага болгох оновчтой тэнцвэрт түвшинг тооцоол</p>
 </header>
 <div class="container">
   <div class="info-strip">
-    <div class="info-box">📅 Data: <strong>{{ info.start }} → {{ info.end }}</strong></div>
-    <div class="info-box">📊 Quarters: <strong>{{ info.rows }}</strong></div>
-    <div class="info-box">🔢 Variables: GDP · CPI · NPCL · DTIbbsb</div>
+    <div class="info-box">📅 Өгөгдлийн хугацаа: <strong>{{ info.start }} → {{ info.end }}</strong></div>
+    <div class="info-box">📊 Нийт улирал: <strong>{{ info.rows }}</strong></div>
+    <div class="info-box">🔢 Хувьсагчид: ДНБ · ХҮИ · Чанаргүй зээл · DTIbbsb</div>
   </div>
 
   <div class="card">
-    <h2>⚙️ Simulation Settings</h2>
+    <h2>⚙️ Симуляцын тохиргоо</h2>
     <form method="POST" onsubmit="document.getElementById('spinner').style.display='block';this.querySelector('button').disabled=true">
       <div class="grid2">
-        <div><label>Minimum DTIbbsb Rate</label>
+        <div><label>ББСБ-ын хэрэглээний зээлийн өр, орлогын харьцааны доод хязгаар</label>
              <input type="number" name="shock_min" step="0.01" value="{{ f.shock_min }}" required></div>
-        <div><label>Maximum DTIbbsb Rate</label>
+        <div><label>ББСБ-ын хэрэглээний зээлийн өр, орлогын харьцааны дээд хязгаар</label>
              <input type="number" name="shock_max" step="0.01" value="{{ f.shock_max }}" required></div>
       </div>
       <div class="grid2">
-        <div><label>Number of Simulations</label>
+        <div><label>Симуляцын тоо</label>
              <input type="number" name="n_sim" min="100" max="2000" step="100" value="{{ f.n_sim }}" required></div>
-        <div><label>Forecast Quarters</label>
+        <div><label>Таамаглалын улирлын тоо</label>
              <input type="number" name="n_forecast" min="1" max="8" value="{{ f.n_forecast }}" required></div>
       </div>
       <div class="grid3">
-        <div><label>GDP Target (g*)</label>
+        <div><label>ДНБ-ний зорилтот түвшин (g*)</label>
              <input type="number" name="g_star" step="0.001" value="{{ f.g_star }}" required></div>
-        <div><label>CPI Target (π*)</label>
+        <div><label>ХҮИ-ний зорилтот түвшин (π*)</label>
              <input type="number" name="pi_star" step="0.001" value="{{ f.pi_star }}" required></div>
-        <div><label>NPCL Target (npcl*)</label>
+        <div><label>Чанаргүй зээлийн зорилтот түвшин (npcl*)</label>
              <input type="number" name="npcl_star" step="0.001" value="{{ f.npcl_star }}" required></div>
       </div>
-      <button type="submit">▶️ Run Simulation</button>
-      <div id="spinner">⏳ Running simulation, please wait (this may take 1–2 minutes)…</div>
+      <button type="submit">▶️ Симуляц ажиллуулах</button>
+      <div id="spinner">⏳ Симуляц тооцоолж байна, түр хүлээнэ үү (1–2 минут)…</div>
     </form>
   </div>
 
-  {% if error %}<div class="error">❌ {{ error }}</div>{% endif %}
+  {% if error %}<div class="error">❌ Алдаа: {{ error }}</div>{% endif %}
 
   {% if result %}
   <div class="card">
-    <h2>🎯 Result</h2>
+    <h2>🎯 Үр дүн</h2>
     <div class="grid4">
       <div class="metric highlight">
         <div class="val">{{ "%.4f"|format(result.neutral_rate) }}</div>
-        <div class="lbl">🏆 Neutral DTIbbsb Rate</div>
+        <div class="lbl">🏆 ББСБ-ын хэрэглээний зээлийн неутрал өр, орлогын харьцаа</div>
       </div>
       <div class="metric">
         <div class="val">{{ "%.4f"|format(result.Et_gdp) }}</div>
-        <div class="lbl">📈 Forecasted GDP</div>
+        <div class="lbl">📈 Хүлээгдэж буй Бодит ДНБ өсөлтийн хувь</div>
       </div>
       <div class="metric">
         <div class="val">{{ "%.4f"|format(result.Et_cpi) }}</div>
-        <div class="lbl">💹 Forecasted CPI</div>
+        <div class="lbl">💹 Инфляци</div>
       </div>
       <div class="metric">
         <div class="val">{{ "%.4f"|format(result.Et_npcl) }}</div>
-        <div class="lbl">📉 Forecasted NPCL</div>
+        <div class="lbl">📉 Чанаргүй хэрэглээний зээлийн хувь</div>
       </div>
     </div>
   </div>
 
   <div class="card">
-    <h2>📉 DTIbbsb Rate vs Loss Function</h2>
+    <h2>📉 DTIbbsb түвшин ба Алдагдлын функц</h2>
     <img class="chart" src="data:image/png;base64,{{ result.chart1 }}">
   </div>
 
   <div class="card">
-    <h2>📊 Forecast Distributions</h2>
+    <h2>📊 Таамаглалын тархалт</h2>
     <img class="chart" src="data:image/png;base64,{{ result.chart2 }}">
   </div>
 
   <div class="card">
-    <h2>📋 Top 10 Lowest Loss Scenarios</h2>
+    <h2>📋 Алдагдал хамгийн бага 10 хувилбар</h2>
     {{ result.table | safe }}
   </div>
 
   <div class="card">
-    <h2>📥 Download Results</h2>
-    <a class="dl-btn" href="/download/mc_results">⬇️ MC Results (Excel)</a>
-    <a class="dl-btn" href="/download/mc_input">⬇️ Full Simulation Data (Excel)</a>
+    <h2>📥 Үр дүн татаж авах</h2>
+    <a class="dl-btn" href="/download/mc_results">⬇️ МК үр дүн (Excel)</a>
+    <a class="dl-btn" href="/download/mc_input">⬇️ Бүрэн симуляцын өгөгдөл (Excel)</a>
   </div>
   {% endif %}
 </div>
@@ -257,14 +257,16 @@ def index():
     error, result = None, None
 
     if request.method=="POST":
-        f = {k: float(request.form[k]) if "." in request.form[k] or k in ("g_star","pi_star","npcl_star","shock_min","shock_max")
-               else int(request.form[k]) for k in defaults}
+        f = {}
+        for k in defaults:
+            val = request.form[k]
+            f[k] = float(val) if k in ("shock_min","shock_max","g_star","pi_star","npcl_star") else int(val)
         if f["shock_min"] >= f["shock_max"]:
-            error = "Minimum must be less than Maximum."
+            error = "Доод хязгаар нь дээд хязгаараас бага байх ёстой."
         else:
             try:
                 mc_df, inp_df, neutral_rate, nr = run_simulation(
-                    df, f["shock_min"], f["shock_max"], int(f["n_sim"]), int(f["n_forecast"]),
+                    df, f["shock_min"], f["shock_max"], f["n_sim"], f["n_forecast"],
                     f["g_star"], f["pi_star"], f["npcl_star"])
                 _store["mc_df"]  = mc_df
                 _store["inp_df"] = inp_df
@@ -272,31 +274,35 @@ def index():
                 # Chart 1
                 fig1,ax=plt.subplots(figsize=(11,4.5))
                 ax.scatter(mc_df["DTIbbsb"],mc_df["loss"],alpha=0.3,s=8,color="#4C8BF5")
-                ax.axvline(neutral_rate,color="red",linestyle="--",linewidth=2,label=f"Neutral Rate = {neutral_rate:.4f}")
-                ax.set_xlabel("DTIbbsb Rate"); ax.set_ylabel("Loss"); ax.legend(); ax.grid(True,alpha=0.3)
-                ax.set_title(f"Monte Carlo | Range [{f['shock_min']:.2f}–{f['shock_max']:.2f}] | N={int(f['n_sim'])}")
+                ax.axvline(neutral_rate,color="red",linestyle="--",linewidth=2,
+                           label=f"Тэнцвэрт түвшин = {neutral_rate:.4f}")
+                ax.set_xlabel("ББСБ-ын хэрэглээний зээлийн өр, орлогын харьцаа (DTIbbsb)")
+                ax.set_ylabel("Өргөтгөсөн функцын утга (Алдагдал)")
+                ax.set_title(f"Монте Карло симуляц | Хязгаар [{f['shock_min']:.2f}–{f['shock_max']:.2f}] | N={f['n_sim']}")
+                ax.legend(); ax.grid(True,alpha=0.3)
                 c1=fig_to_b64(fig1); plt.close(fig1)
 
                 # Chart 2
                 fig2,axes=plt.subplots(1,3,figsize=(14,4))
-                for ax2,col,lbl,tgt in zip(axes,["Et_gdp","Et_cpi","Et_npcl"],["GDP","CPI","NPCL"],[f["g_star"],f["pi_star"],f["npcl_star"]]):
+                labels_mn = ["Бодит ДНБ өсөлт","Инфляци","Чанаргүй хэрэглээний зээл"]
+                for ax2,col,lbl,tgt in zip(axes,["Et_gdp","Et_cpi","Et_npcl"],labels_mn,[f["g_star"],f["pi_star"],f["npcl_star"]]):
                     ax2.hist(mc_df[col],bins=40,color="#4C8BF5",alpha=0.7,edgecolor="white")
-                    ax2.axvline(mc_df[col].mean(),color="red",linestyle="--",label=f"Mean: {mc_df[col].mean():.4f}")
-                    ax2.axvline(tgt,color="green",linestyle="--",label=f"Target: {tgt:.4f}")
-                    ax2.set_title(f"Forecasted {lbl}"); ax2.legend(fontsize=8); ax2.grid(True,alpha=0.3)
+                    ax2.axvline(mc_df[col].mean(),color="red",linestyle="--",label=f"Дундаж: {mc_df[col].mean():.4f}")
+                    ax2.axvline(tgt,color="green",linestyle="--",label=f"Зорилт: {tgt:.4f}")
+                    ax2.set_title(f"Таамаглалын {lbl}"); ax2.legend(fontsize=8); ax2.grid(True,alpha=0.3)
                 plt.tight_layout(); c2=fig_to_b64(fig2); plt.close(fig2)
 
-                # Top 10 table
-                top10=mc_df.nsmallest(10,"loss").reset_index(drop=True); top10.index+=1
-                tbl=top10.to_html(classes="",border=0,float_format=lambda x:f"{x:.4f}",index=True)
+                # Top 10 table — Mongolian headers
+                top10 = mc_df.nsmallest(10,"loss").reset_index(drop=True)
+                top10.index += 1
+                top10.columns = ["DTIbbsb","Хүлээгдэж буй Бодит ДНБ өсөлтийн хувь","Инфляци","Чанаргүй хэрэглээний зээлийн хувь","Алдагдал"]
+                tbl = top10.to_html(classes="",border=0,float_format=lambda x:f"{x:.4f}",index=True)
 
                 result=dict(neutral_rate=neutral_rate,Et_gdp=nr["Et_gdp"],Et_cpi=nr["Et_cpi"],
                             Et_npcl=nr["Et_npcl"],chart1=c1,chart2=c2,table=tbl)
                 defaults=f
             except Exception as e:
                 error=str(e)
-        if error:
-            pass
 
     return render_template_string(HTML, info=info, f=defaults, error=error, result=result)
 
@@ -304,13 +310,13 @@ def index():
 def download(name):
     if name=="mc_results" and "mc_df" in _store:
         return send_file(io.BytesIO(to_excel_bytes(_store["mc_df"])),
-                         download_name="mc_results.xlsx",as_attachment=True,
+                         download_name="мк_үр_дүн.xlsx",as_attachment=True,
                          mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     if name=="mc_input" and "inp_df" in _store:
         return send_file(io.BytesIO(to_excel_bytes(_store["inp_df"])),
-                         download_name="mc_input_data.xlsx",as_attachment=True,
+                         download_name="симуляцын_өгөгдөл.xlsx",as_attachment=True,
                          mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    return "No data yet. Run simulation first.", 404
+    return "Өгөгдөл байхгүй байна. Эхлээд симуляц ажиллуулна уу.", 404
 
 if __name__=="__main__":
     port=int(os.environ.get("PORT",5000))
