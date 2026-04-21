@@ -277,22 +277,10 @@ function runSimulation(e) {
 {% if result %}
 <div class="card">
   <h2>🎯 Үр дүн</h2>
-  <div class="grid4">
-    <div class="metric highlight">
-      <div class="val">{{ "%.4f"|format(result.neutral_rate) }}</div>
-      <div class="lbl">🏆 ББСБ-ын хэрэглээний зээлийн неутрал өр, орлогын харьцаа</div>
-    </div>
-    <div class="metric">
-      <div class="val">{{ "%.4f"|format(result.Et_gdp) }}</div>
-      <div class="lbl">📈 Хүлээгдэж буй Бодит ДНБ өсөлтийн хувь</div>
-    </div>
-    <div class="metric">
-      <div class="val">{{ "%.4f"|format(result.Et_cpi) }}</div>
-      <div class="lbl">💹 Инфляци</div>
-    </div>
-    <div class="metric">
-      <div class="val">{{ "%.4f"|format(result.Et_npcl) }}</div>
-      <div class="lbl">📉 Чанаргүй хэрэглээний зээлийн хувь</div>
+  <div style="text-align:center;padding:20px 0">
+    <div class="metric highlight" style="display:inline-block;min-width:280px;padding:20px 32px">
+      <div class="val" style="font-size:2rem">{{ "%.4f"|format(result.neutral_rate) }}</div>
+      <div class="lbl" style="font-size:0.9rem;margin-top:8px">🏆 ББСБ-ын хэрэглээний зээлийн неутрал өр, орлогын харьцаа</div>
     </div>
   </div>
 </div>
@@ -572,8 +560,21 @@ def run_simulation(df, shock_min, shock_max, n_sim, n_forecast, g_star, pi_star,
         loss=(0.33*(cpi_f[-1]-pi_star)**2+0.33*(gdp_f[-1]-g_star)**2+0.33*(npcl_f[-1]-npcl_star)**2)*1000
         mc_results.append({"DTIbbsb":shock,"Et_gdp":gdp_f[-1],"Et_cpi":cpi_f[-1],"Et_npcl":npcl_f[-1],"loss":loss})
     mc_df = pd.DataFrame(mc_results)
-    nr    = mc_df.loc[mc_df["loss"].idxmin()]
-    return mc_df, pd.DataFrame(mc_input), nr["DTIbbsb"], nr
+    # Find minimum loss and all DTI values with equal minimum loss
+    min_loss = mc_df["loss"].min()
+    tol = 1e-8  # tolerance for floating point equality
+    best_rows = mc_df[mc_df["loss"] <= min_loss + tol]
+    if len(best_rows) > 1:
+        # Multiple equal minimums - return midpoint of range
+        dti_min = best_rows["DTIbbsb"].min()
+        dti_max = best_rows["DTIbbsb"].max()
+        neutral_dti = (dti_min + dti_max) / 2
+        # Use the row closest to midpoint
+        nr = mc_df.iloc[(mc_df["DTIbbsb"] - neutral_dti).abs().argmin()]
+    else:
+        nr = best_rows.iloc[0]
+        neutral_dti = nr["DTIbbsb"]
+    return mc_df, pd.DataFrame(mc_input), neutral_dti, nr
 
 def fig_to_b64(fig):
     buf=io.BytesIO(); fig.savefig(buf,format="png",bbox_inches="tight",dpi=110); buf.seek(0)
@@ -707,8 +708,17 @@ def run_progress():
             mc_df = pd.DataFrame(mc_results)
             _store["mc_df"]  = mc_df
             _store["inp_df"] = pd.DataFrame(mc_input)
-            nr = mc_df.loc[mc_df["loss"].idxmin()]
-            neutral_rate = nr["DTIbbsb"]
+            min_loss = mc_df["loss"].min()
+            tol = 1e-8
+            best_rows = mc_df[mc_df["loss"] <= min_loss + tol]
+            if len(best_rows) > 1:
+                dti_min = best_rows["DTIbbsb"].min()
+                dti_max = best_rows["DTIbbsb"].max()
+                neutral_rate = (dti_min + dti_max) / 2
+                nr = mc_df.iloc[(mc_df["DTIbbsb"] - neutral_rate).abs().argmin()]
+            else:
+                nr = best_rows.iloc[0]
+                neutral_rate = nr["DTIbbsb"]
 
             def fig_to_b64(fig):
                 buf=io.BytesIO(); fig.savefig(buf,format="png",bbox_inches="tight",dpi=110); buf.seek(0)
@@ -726,14 +736,12 @@ def run_progress():
             html = f"""
             <div class="card">
               <h2>🎯 Үр дүн</h2>
-              <div class="grid4">
-                <div class="metric highlight">
-                  <div class="val">{neutral_rate:.4f}</div>
-                  <div class="lbl">🏆 ББСБ-ын хэрэглээний зээлийн неутрал өр, орлогын харьцаа</div>
+              <div style="text-align:center;padding:20px 0">
+                <div class="metric highlight" style="display:inline-block;min-width:280px;padding:20px 32px">
+                  <div class="val" style="font-size:2rem">{neutral_rate:.4f}</div>
+                  <div class="lbl" style="font-size:0.9rem;margin-top:8px">🏆 ББСБ-ын хэрэглээний зээлийн неутрал өр, орлогын харьцаа</div>
                 </div>
-                <div class="metric"><div class="val">{nr["Et_gdp"]:.4f}</div><div class="lbl">📈 Хүлээгдэж буй Бодит ДНБ өсөлтийн хувь</div></div>
-                <div class="metric"><div class="val">{nr["Et_cpi"]:.4f}</div><div class="lbl">💹 Инфляци</div></div>
-                <div class="metric"><div class="val">{nr["Et_npcl"]:.4f}</div><div class="lbl">📉 Чанаргүй хэрэглээний зээлийн хувь</div></div>
+
               </div>
             </div>
             <div class="card">
