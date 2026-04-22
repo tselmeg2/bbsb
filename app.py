@@ -397,22 +397,19 @@ PRES_PAGE = BASE.replace("{% block content %}{% endblock %}", """
     <div class="slide-container">
       <button class="fullscreen-btn" onclick="toggleFullscreen()">⛶ Дэлгэц дүүргэх</button>
       <img id="mainSlide" class="slide-img" src="" alt="Слайд">
-      <!-- Fullscreen overlay navigation -->
-      <div id="fsOverlay" style="display:none;position:fixed;inset:0;z-index:9999;pointer-events:none">
-        <button onclick="changeSlide(-1)" style="pointer-events:all;position:absolute;left:16px;top:50%;transform:translateY(-50%);
+      <!-- Fullscreen overlay -->
+      <div id="fsOverlay" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100dvh;background:#000;z-index:9999;">
+        <img id="fsSlide" style="width:100%;height:100%;object-fit:contain;display:block">
+        <button onclick="changeSlide(-1)" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);
           background:rgba(0,0,0,0.6);color:white;border:none;border-radius:50%;width:56px;height:56px;
-          font-size:1.6rem;cursor:pointer;z-index:10000;transition:background 0.2s"
-          onmouseover="this.style.background='rgba(76,139,245,0.85)'"
-          onmouseout="this.style.background='rgba(0,0,0,0.6)'">◀</button>
-        <button onclick="changeSlide(1)" style="pointer-events:all;position:absolute;right:16px;top:50%;transform:translateY(-50%);
+          font-size:1.6rem;cursor:pointer;z-index:10000">◀</button>
+        <button onclick="changeSlide(1)" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);
           background:rgba(0,0,0,0.6);color:white;border:none;border-radius:50%;width:56px;height:56px;
-          font-size:1.6rem;cursor:pointer;z-index:10000;transition:background 0.2s"
-          onmouseover="this.style.background='rgba(76,139,245,0.85)'"
-          onmouseout="this.style.background='rgba(0,0,0,0.6)'">▶</button>
-        <div style="pointer-events:all;position:absolute;bottom:20px;left:50%;transform:translateX(-50%);
+          font-size:1.6rem;cursor:pointer;z-index:10000">▶</button>
+        <div style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%);
           background:rgba(0,0,0,0.55);color:white;padding:6px 18px;border-radius:20px;font-size:1rem;font-weight:600"
-          id="fsCounter">1 / 15</div>
-        <button onclick="document.exitFullscreen()" style="pointer-events:all;position:absolute;top:16px;right:16px;
+          id="fsCounter">1 / 16</div>
+        <button onclick="closeFullscreen()" style="position:absolute;top:16px;right:16px;
           background:rgba(0,0,0,0.6);color:white;border:none;border-radius:8px;padding:8px 14px;
           font-size:0.9rem;cursor:pointer;z-index:10000">✕ Гарах</button>
       </div>
@@ -456,10 +453,12 @@ function init() {
 
 function goTo(n) {
   current = n;
-  document.getElementById('mainSlide').src = 'data:image/jpeg;base64,'+window._slideData[n];
+  const src = 'data:image/jpeg;base64,'+window._slideData[n];
+  document.getElementById('mainSlide').src = src;
   document.getElementById('counter').textContent = (n+1)+' / '+slides;
-  const fc = document.getElementById('fsCounter');
-  if(fc) fc.textContent = (n+1)+' / '+slides;
+  document.getElementById('fsCounter').textContent = (n+1)+' / '+slides;
+  const fsImg = document.getElementById('fsSlide');
+  if(document.getElementById('fsOverlay').style.display === 'block') fsImg.src = src;
   document.getElementById('prevBtn').disabled = n===0;
   document.getElementById('nextBtn').disabled = n===slides-1;
   document.querySelectorAll('.dot').forEach((d,i)=>d.classList.toggle('active',i===n));
@@ -470,23 +469,29 @@ function goTo(n) {
 function changeSlide(dir) { goTo(Math.max(0,Math.min(slides-1,current+dir))); }
 
 function toggleFullscreen() {
-  const el = document.querySelector('.slide-viewer');
-  if(!document.fullscreenElement) {
-    el.requestFullscreen().catch(err => console.log(err));
-  } else {
-    document.exitFullscreen();
-  }
+  const overlay = document.getElementById('fsOverlay');
+  const fsImg = document.getElementById('fsSlide');
+  fsImg.src = 'data:image/jpeg;base64,' + window._slideData[current];
+  overlay.style.display = 'block';
+  document.body.style.overflow = 'hidden';
 }
 
-// Show/hide fullscreen overlay controls
-document.addEventListener('fullscreenchange', () => {
-  const overlay = document.getElementById('fsOverlay');
-  if(document.fullscreenElement) {
-    overlay.style.display = 'flex';
-  } else {
-    overlay.style.display = 'none';
-  }
-});
+function closeFullscreen() {
+  document.getElementById('fsOverlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+// Swipe support for mobile
+(function(){
+  let x0 = null;
+  document.getElementById('fsOverlay').addEventListener('touchstart', e => { x0 = e.touches[0].clientX; });
+  document.getElementById('fsOverlay').addEventListener('touchend', e => {
+    if(x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    if(Math.abs(dx) > 40) changeSlide(dx < 0 ? 1 : -1);
+    x0 = null;
+  });
+})();
 
 document.addEventListener('keydown',e=>{
   if(e.key==='ArrowRight'||e.key==='ArrowDown') changeSlide(1);
