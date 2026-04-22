@@ -129,11 +129,11 @@ BASE = """
     <a href="/presentation" class="nav-item {% if page=='presentation' %}active{% endif %}">
       <span class="icon">📑</span> Илтгэл
     </a>
-    <a href="/" class="nav-item {% if page=='simulation' %}active{% endif %}">
-      <span class="icon">📊</span> Монте Карло Симуляц
-    </a>
     <a href="/sudalgaa" class="nav-item {% if page=='sudalgaa' %}active{% endif %}">
       <span class="icon">📄</span> Судалгаа
+    </a>
+    <a href="/" class="nav-item {% if page=='simulation' %}active{% endif %}">
+      <span class="icon">📊</span> Монте Карло Симуляц
     </a>
 
 
@@ -183,7 +183,7 @@ SIM_PAGE = BASE.replace("{% block content %}{% endblock %}", """
     <div class="grid2">
       <div><label>Симуляцын тоо (100)</label>
            <input type="number" name="n_sim" min="100" max="100" step="100" value="{{ f.n_sim }}" required></div>
-      <div><label>Улирлын тоо (1–4)</label>
+      <div><label>Улирлын тоо</label>
            <input type="number" name="n_forecast" min="4" max="4" value="4" readonly style="background:#f0f4f8;cursor:not-allowed;color:#666"></div>
     </div>
     <div class="grid3">
